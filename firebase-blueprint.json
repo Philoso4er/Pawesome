@@ -1,0 +1,207 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and settings",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Pet": {
+      "title": "Pet",
+      "description": "A pet profile owned by a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "species": { "type": "string" },
+        "breed": { "type": "string" },
+        "age": { "type": "number" },
+        "photoUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "name", "species"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "A single message in a chat consultation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "model"] },
+        "content": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "userId", "role", "content", "timestamp"]
+    },
+    "HealthRecord": {
+      "title": "HealthRecord",
+      "description": "A health record for a pet",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "petId": { "type": "string" },
+        "type": { "type": "string", "enum": ["vaccination", "medication", "vet_visit", "symptom"] },
+        "date": { "type": "string" },
+        "title": { "type": "string" },
+        "notes": { "type": "string" },
+        "vetName": { "type": "string" },
+        "medicationName": { "type": "string" },
+        "dosage": { "type": "string" },
+        "timestamp": { "type": "object" }
+      },
+      "required": ["id", "petId", "type", "date", "title"]
+    },
+    "TrainingProgress": {
+      "title": "TrainingProgress",
+      "description": "Progress tracking for pet training tasks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "petId": { "type": "string" },
+        "taskId": { "type": "string" },
+        "status": { "type": "string", "enum": ["not_started", "in_progress", "mastered"] },
+        "lastPracticed": { "type": "object" },
+        "videoUrl": { "type": "string" }
+      },
+      "required": ["id", "petId", "taskId", "status"]
+    },
+    "Playdate": {
+      "title": "Playdate",
+      "description": "A scheduled pet playdate",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "hostId": { "type": "string" },
+        "hostPetId": { "type": "string" },
+        "guestId": { "type": "string" },
+        "guestPetId": { "type": "string" },
+        "location": { "type": "string" },
+        "dateTime": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled"] },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "hostId", "hostPetId", "location", "dateTime", "status"]
+    },
+    "SocialPost": {
+      "title": "SocialPost",
+      "description": "A social post shared by a user about their pet",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "petId": { "type": "string" },
+        "content": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "timestamp": { "type": "object" },
+        "likes": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "userId", "petId", "content", "timestamp"]
+    },
+    "ForumPost": {
+      "title": "ForumPost",
+      "description": "A post in the community pet forum",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["image", "video"] },
+        "createdAt": { "type": "object" },
+        "likes": { "type": "array", "items": { "type": "string" } },
+        "commentCount": { "type": "number" },
+        "isModerated": { "type": "boolean" },
+        "moderationReason": { "type": "string" }
+      },
+      "required": ["id", "authorId", "authorName", "title", "content", "createdAt"]
+    },
+    "ForumComment": {
+      "title": "ForumComment",
+      "description": "A comment on a forum post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "postId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "object" }
+      },
+      "required": ["id", "postId", "authorId", "authorName", "content", "createdAt"]
+    },
+    "ExpertQuestion": {
+      "title": "ExpertQuestion",
+      "description": "A question asked to the pet expert AI/human",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "petId": { "type": "string" },
+        "petName": { "type": "string" },
+        "question": { "type": "string" },
+        "aiAnswer": { "type": "string" },
+        "expertAnswer": { "type": "string" },
+        "expertName": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "answered", "escalated"] },
+        "createdAt": { "type": "object" }
+      },
+      "required": ["id", "authorId", "authorName", "question", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Top-level user documents"
+    },
+    "/users/{userId}/pets/{petId}": {
+      "schema": "Pet",
+      "description": "Pets belonging to a specific user"
+    },
+    "/users/{userId}/chats/{chatId}": {
+      "schema": "ChatMessage",
+      "description": "Chat messages for a specific user"
+    },
+    "/users/{userId}/health/{recordId}": {
+      "schema": "HealthRecord",
+      "description": "Health records for a user's pets"
+    },
+    "/users/{userId}/training/{progressId}": {
+      "schema": "TrainingProgress",
+      "description": "Training progress for a user's pets"
+    },
+    "/playdates/{playdateId}": {
+      "schema": "Playdate",
+      "description": "Global playdates collection"
+    },
+    "/socialPosts/{postId}": {
+      "schema": "SocialPost",
+      "description": "Global social posts collection"
+    },
+    "/forum_posts/{postId}": {
+      "schema": "ForumPost",
+      "description": "Global forum posts collection"
+    },
+    "/forum_comments/{commentId}": {
+      "schema": "ForumComment",
+      "description": "Global forum comments collection"
+    },
+    "/expert_questions/{questionId}": {
+      "schema": "ExpertQuestion",
+      "description": "Global expert questions collection"
+    }
+  }
+}

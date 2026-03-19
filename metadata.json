@@ -1,0 +1,9 @@
+{
+  "name": "Pawesome",
+  "description": "The ultimate AI-powered companion for pet owners. Expert advice, live consultations, custom guides, and local pet services.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}

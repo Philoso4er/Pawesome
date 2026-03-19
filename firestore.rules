@@ -1,0 +1,213 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields: uid, email, displayName, photoURL, createdAt
+    //
+    // Collection: users/{userId}/pets
+    // Fields: id, ownerId, name, species, breed, age, photoUrl, createdAt
+    //
+    // Collection: users/{userId}/chats
+    // Fields: id, userId, role, content, timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email);
+    }
+
+    function isValidPet(data) {
+      return data.keys().hasAll(['ownerId', 'name', 'species']) &&
+             data.ownerId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.species is string && data.species.size() < 50 &&
+             (!('breed' in data) || (data.breed is string && data.breed.size() < 100)) &&
+             data.age is number && data.age >= 0 && data.age < 100;
+    }
+
+    function isValidChat(data) {
+      return data.keys().hasAll(['userId', 'role', 'content', 'timestamp']) &&
+             data.userId == request.auth.uid &&
+             data.role in ['user', 'model'] &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 5000;
+    }
+
+    function isValidHealthRecord(data) {
+      return data.keys().hasAll(['petId', 'type', 'date', 'title']) &&
+             data.petId is string &&
+             data.type in ['vaccination', 'medication', 'vet_visit', 'symptom'] &&
+             data.date is string && data.date.size() < 20 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000));
+    }
+
+    function isValidTrainingProgress(data) {
+      return data.keys().hasAll(['petId', 'taskId', 'status']) &&
+             data.petId is string &&
+             data.taskId is string &&
+             data.status in ['not_started', 'in_progress', 'mastered'];
+    }
+
+    function isValidPlaydate(data) {
+      return data.keys().hasAll(['hostId', 'hostPetId', 'location', 'dateTime', 'status']) &&
+             data.hostId == request.auth.uid &&
+             data.hostPetId is string &&
+             data.location is string && data.location.size() > 0 && data.location.size() < 200 &&
+             data.dateTime is string && data.dateTime.size() < 30 &&
+             data.status in ['pending', 'confirmed', 'cancelled'] &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000));
+    }
+
+    function isValidSocialPost(data) {
+      return data.keys().hasAll(['userId', 'petId', 'content', 'timestamp']) &&
+             data.userId == request.auth.uid &&
+             data.petId is string &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 1000 &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() < 500));
+    }
+
+    function isValidForumPost(data) {
+      return data.keys().hasAll(['authorId', 'authorName', 'title', 'content', 'createdAt']) &&
+             data.authorId == request.auth.uid &&
+             data.authorName is string && data.authorName.size() > 0 && data.authorName.size() < 100 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 5000 &&
+             (!('mediaUrl' in data) || (data.mediaUrl is string && data.mediaUrl.size() < 1000)) &&
+             (!('mediaType' in data) || (data.mediaType in ['image', 'video'])) &&
+             (!('isModerated' in data) || (data.isModerated is bool)) &&
+             (!('moderationReason' in data) || (data.moderationReason is string && data.moderationReason.size() < 500));
+    }
+
+    function isValidForumComment(data) {
+      return data.keys().hasAll(['postId', 'authorId', 'authorName', 'content', 'createdAt']) &&
+             data.authorId == request.auth.uid &&
+             data.postId is string &&
+             data.authorName is string && data.authorName.size() > 0 && data.authorName.size() < 100 &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 1000;
+    }
+
+    function isValidExpertQuestion(data) {
+      return data.keys().hasAll(['authorId', 'authorName', 'question', 'status', 'createdAt']) &&
+             data.authorName is string && data.authorName.size() > 0 && data.authorName.size() < 100 &&
+             data.question is string && data.question.size() > 0 && data.question.size() < 2000 &&
+             data.status in ['pending', 'answered', 'escalated'] &&
+             (!('petId' in data) || (data.petId is string || data.petId == null)) &&
+             (!('petName' in data) || (data.petName is string || data.petName == null)) &&
+             (!('aiAnswer' in data) || (data.aiAnswer is string && data.aiAnswer.size() < 5000)) &&
+             (!('expertAnswer' in data) || (data.expertAnswer is string && data.expertAnswer.size() < 5000)) &&
+             (!('expertName' in data) || (data.expertName is string && data.expertName.size() < 100));
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.email == "cikennaobi@gmail.com" && 
+             request.auth.token.email_verified == true;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+
+      match /pets/{petId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidPet(request.resource.data);
+        allow update: if isOwner(userId) && isValidPet(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /chats/{chatId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidChat(request.resource.data);
+        allow update: if isOwner(userId) && isValidChat(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /health/{recordId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidHealthRecord(request.resource.data);
+        allow update: if isOwner(userId) && isValidHealthRecord(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /training/{progressId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidTrainingProgress(request.resource.data);
+        allow update: if isOwner(userId) && isValidTrainingProgress(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    match /playdates/{playdateId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidPlaydate(request.resource.data);
+      allow update: if isAuthenticated() && (
+        isOwner(resource.data.hostId) || 
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['guestId', 'guestPetId', 'status']))
+      );
+      allow delete: if isAuthenticated() && isOwner(resource.data.hostId);
+    }
+
+    match /socialPosts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidSocialPost(request.resource.data);
+      allow update: if isAuthenticated() && (
+        isOwner(resource.data.userId) || 
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']))
+      );
+      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+
+    match /forum_posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidForumPost(request.resource.data);
+      allow update: if isAuthenticated() && (
+        isOwner(resource.data.authorId) || 
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'commentCount']))
+      );
+      allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
+    }
+
+    match /forum_comments/{commentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidForumComment(request.resource.data);
+      allow update: if isAuthenticated() && isOwner(resource.data.authorId);
+      allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
+    }
+
+    match /expert_questions/{questionId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.authorId) || isAdmin());
+      allow create: if isAuthenticated() && isValidExpertQuestion(request.resource.data) && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() && isValidExpertQuestion(request.resource.data) && (
+        (isOwner(resource.data.authorId) && request.resource.data.authorId == resource.data.authorId) || 
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (isOwner(resource.data.authorId) || isAdmin());
+    }
+  }
+}
