@@ -129,3 +129,47 @@ export interface Coupon {
   expiry?: string;
   source: string;
 }
+
+export interface FeedingSchedule {
+  id: string;
+  petId: string;
+  times: string[];
+  portionSize: string;
+  foodType: string;
+  notes?: string;
+}
+
+export interface FeedingLog {
+  id: string;
+  petId: string;
+  timestamp: any;
+  fedBy: string;
+  portionGiven: string;
+  notes?: string;
+}
+
+export interface SitterHandoff {
+  id: string;
+  petId: string;
+  createdAt: any;
+  sitterName?: string;
+  feedingInstructions: string;
+  medications: string;
+  vetName: string;
+  vetPhone: string;
+  emergencyContact: string;
+  behaviourNotes: string;
+  routineNotes: string;
+}
+
+export interface SeniorJournalEntry {
+  id: string;
+  petId: string;
+  date: string;
+  timestamp: any;
+  appetite: 1 | 2 | 3;
+  mobility: 1 | 2 | 3;
+  water: 1 | 2 | 3;
+  mood: 1 | 2 | 3;
+  notes?: string;
+}
