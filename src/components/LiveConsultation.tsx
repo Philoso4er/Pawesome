@@ -21,7 +21,6 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
 
   const playAudio = useCallback(async (base64Data: string) => {
     if (!audioContextRef.current) return;
-    
     try {
       const binary = atob(base64Data);
       const bytes = new Uint8Array(binary.length);
@@ -29,14 +28,11 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
       const pcmData = new Int16Array(bytes.buffer);
       const floatData = new Float32Array(pcmData.length);
       for (let i = 0; i < pcmData.length; i++) floatData[i] = pcmData[i] / 0x7FFF;
-
       const buffer = audioContextRef.current.createBuffer(1, floatData.length, 24000);
       buffer.getChannelData(0).set(floatData);
-      
       const source = audioContextRef.current.createBufferSource();
       source.buffer = buffer;
       source.connect(audioContextRef.current.destination);
-      
       const startTime = Math.max(audioContextRef.current.currentTime, nextAudioTimeRef.current);
       source.start(startTime);
       nextAudioTimeRef.current = startTime + buffer.duration;
@@ -84,7 +80,6 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !sessionRef.current) return;
-    
     sessionRef.current.sendRealtimeInput({ text: inputText });
     setTranscription(prev => [...prev, { role: 'user', text: inputText }]);
     setInputText('');
@@ -93,11 +88,8 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
   const startSession = useCallback(async () => {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: true
-      });
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
 
@@ -124,21 +116,33 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
             if (message.serverContent?.modelTurn?.parts[0]?.inlineData?.data) {
               playAudio(message.serverContent.modelTurn.parts[0].inlineData.data);
             }
-            
+
             if (message.serverContent?.interrupted) {
               nextAudioTimeRef.current = audioContextRef.current?.currentTime || 0;
             }
 
-            if (message.serverContent?.modelTurn?.parts[0]?.text) {
-              setTranscription(prev => [...prev, { role: 'ai', text: message.serverContent!.modelTurn!.parts[0].text! }]);
-            }
-
+            // Accumulate AI spoken words into one bubble — ignore modelTurn.text (thinking tokens)
             if (message.serverContent?.outputTranscription?.text) {
-              setTranscription(prev => [...prev, { role: 'ai', text: message.serverContent!.outputTranscription!.text! }]);
+              const chunk = message.serverContent.outputTranscription.text;
+              setTranscription(prev => {
+                const last = prev[prev.length - 1];
+                if (last && last.role === 'ai') {
+                  return [...prev.slice(0, -1), { role: 'ai', text: last.text + chunk }];
+                }
+                return [...prev, { role: 'ai', text: chunk }];
+              });
             }
 
+            // Accumulate user spoken words into one bubble
             if (message.serverContent?.inputTranscription?.text) {
-              setTranscription(prev => [...prev, { role: 'user', text: message.serverContent!.inputTranscription!.text! }]);
+              const chunk = message.serverContent.inputTranscription.text;
+              setTranscription(prev => {
+                const last = prev[prev.length - 1];
+                if (last && last.role === 'user') {
+                  return [...prev.slice(0, -1), { role: 'user', text: last.text + chunk }];
+                }
+                return [...prev, { role: 'user', text: chunk }];
+              });
             }
           },
           onerror: (err) => {
@@ -171,15 +175,14 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
 
   return (
     <div className="fixed inset-0 z-[100] bg-[#0A0A0A] flex flex-col md:flex-row">
-      {/* Video Section */}
       <div className="flex-1 relative flex flex-col p-4 gap-4">
         <div className="flex-1 relative grid grid-cols-1 gap-4">
           <div className="relative bg-[#1A1A1A] rounded-3xl overflow-hidden shadow-2xl border border-white/5">
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              muted 
-              playsInline 
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
               className={cn("w-full h-full object-cover", !isVideoEnabled && "hidden")}
             />
             {!isVideoEnabled && (
@@ -193,9 +196,8 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
           </div>
         </div>
 
-        {/* Controls */}
         <div className="bg-[#1A1A1A] border border-white/5 rounded-[32px] p-6 flex items-center justify-center gap-6 shadow-2xl">
-          <button 
+          <button
             onClick={() => setIsMuted(!isMuted)}
             className={cn(
               "w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300",
@@ -204,15 +206,15 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
           >
             {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
           </button>
-          
-          <button 
+
+          <button
             onClick={onEnd}
             className="w-20 h-14 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-all duration-300 shadow-[0_0_30px_rgba(239,68,68,0.3)]"
           >
             <PhoneOff size={28} />
           </button>
 
-          <button 
+          <button
             onClick={() => setIsVideoEnabled(!isVideoEnabled)}
             className={cn(
               "w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300",
@@ -224,7 +226,6 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
         </div>
       </div>
 
-      {/* Chat Section */}
       <div className="w-full md:w-[400px] bg-[#111111] border-l border-white/5 flex flex-col">
         <div className="p-6 border-b border-white/5 flex items-center gap-3">
           <div className="w-10 h-10 bg-[#5A5A40] rounded-xl flex items-center justify-center text-white shadow-[0_0_20px_rgba(90,90,64,0.2)]">
@@ -243,8 +244,8 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
           {transcription.map((t, i) => (
             <div key={i} className={cn(
               "max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed",
-              t.role === 'ai' 
-                ? "bg-white/5 text-white self-start rounded-tl-none border border-white/5" 
+              t.role === 'ai'
+                ? "bg-white/5 text-white self-start rounded-tl-none border border-white/5"
                 : "bg-[#5A5A40] text-white self-end rounded-tr-none ml-auto"
             )}>
               <p>{t.text}</p>
@@ -262,7 +263,7 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
               placeholder="Type a message..."
               className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5A5A40] transition-all"
             />
-            <button 
+            <button
               type="submit"
               disabled={!inputText.trim()}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-[#5A5A40] hover:text-white disabled:opacity-30 transition-colors"
@@ -274,7 +275,7 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
       </div>
 
       <canvas ref={canvasRef} width="320" height="240" className="hidden" />
-      
+
       {!isConnected && !error && (
         <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center text-white z-[110]">
           <div className="w-20 h-20 bg-[#5A5A40] rounded-[32px] flex items-center justify-center text-white mb-8 animate-pulse shadow-[0_0_50px_rgba(90,90,64,0.3)]">
@@ -293,8 +294,8 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
           </div>
           <h3 className="text-xl font-bold mb-2">Connection Failed</h3>
           <p className="text-white/60 mb-8 max-w-xs mx-auto">{error}</p>
-          <button 
-            onClick={onEnd} 
+          <button
+            onClick={onEnd}
             className="bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-white/90 transition-all active:scale-95"
           >
             Return to Home
