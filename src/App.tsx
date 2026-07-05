@@ -10,7 +10,10 @@ import SocialHub from './components/SocialHub';
 import CommunityForum from './components/CommunityForum';
 import ExpertQA from './components/ExpertQA';
 import PetShopping from './components/PetShopping';
-import { PawPrint, Heart, Calendar, Search, Zap, MapPin, ExternalLink, Loader2, LogIn, GraduationCap, Users, Settings, MessageCircle, HelpCircle, ShoppingBag } from 'lucide-react';
+import FeedingTracker from './components/FeedingTracker';
+import SitterHandoffSheet from './components/SitterHandoffSheet';
+import SeniorJournal from './components/SeniorJournal';
+import { PawPrint, Heart, Zap, MapPin, Loader2, LogIn, GraduationCap, Users, Settings, MessageCircle, HelpCircle, ShoppingBag, UtensilsCrossed, ClipboardList, BookHeart } from 'lucide-react';
 import { getPetAdvice } from './services/gemini';
 import { useFirebase } from './FirebaseProvider';
 
@@ -68,7 +71,6 @@ export default function App() {
   const fetchNearbyServices = async () => {
     setIsSearching(true);
     try {
-      // Use geolocation if available
       let locationPrompt = "Find pet stores, veterinarians, and dog parks nearby.";
       if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(async (position) => {
@@ -93,7 +95,6 @@ export default function App() {
     }
   };
 
-
   const renderContent = () => {
     if (isLiveActive) return <LiveConsultation onEnd={() => setIsLiveActive(false)} />;
 
@@ -101,7 +102,6 @@ export default function App() {
       case 'home':
         return (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Hero Section */}
             <section className="relative overflow-hidden rounded-[32px] bg-[#5A5A40] p-8 text-white shadow-xl">
               <div className="relative z-10 space-y-4 max-w-md">
                 <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider">
@@ -114,7 +114,7 @@ export default function App() {
                 <p className="text-white/80 text-sm leading-relaxed">
                   Get instant expert advice, find local services, and manage your pet's health with Pawesome AI.
                 </p>
-                <button 
+                <button
                   onClick={() => setIsLiveActive(true)}
                   className="bg-white text-[#5A5A40] px-6 py-3 rounded-full font-semibold text-sm hover:shadow-lg transition-all active:scale-95"
                 >
@@ -126,8 +126,7 @@ export default function App() {
               </div>
             </section>
 
-            {/* Quick Actions */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {[
                 { label: 'Forum', icon: MessageCircle, color: 'bg-orange-50 text-orange-600', tab: 'forum' },
                 { label: 'Expert Q&A', icon: HelpCircle, color: 'bg-indigo-50 text-indigo-600', tab: 'qa' },
@@ -136,9 +135,12 @@ export default function App() {
                 { label: 'Health Diary', icon: Heart, color: 'bg-rose-50 text-rose-600', tab: 'health' },
                 { label: 'Training', icon: GraduationCap, color: 'bg-purple-50 text-purple-600', tab: 'training' },
                 { label: 'Profile', icon: Settings, color: 'bg-slate-50 text-slate-600', tab: 'profile' },
+                { label: 'Feeding', icon: UtensilsCrossed, color: 'bg-yellow-50 text-yellow-600', tab: 'feeding' },
+                { label: 'Sitter Sheet', icon: ClipboardList, color: 'bg-teal-50 text-teal-600', tab: 'sitter' },
+                { label: 'Senior Journal', icon: BookHeart, color: 'bg-pink-50 text-pink-600', tab: 'senior' },
               ].map((action, i) => (
-                <button 
-                  key={i} 
+                <button
+                  key={i}
                   onClick={() => setActiveTab(action.tab)}
                   className="flex flex-col items-center gap-3 p-6 bg-white rounded-3xl border border-[#F0EBE6] hover:border-[#5A5A40] transition-all group"
                 >
@@ -150,14 +152,10 @@ export default function App() {
               ))}
             </div>
 
-            {/* Nearby Services */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-serif font-bold text-[#5A5A40]">Nearby Services</h3>
-                <button 
-                  onClick={fetchNearbyServices}
-                  className="text-xs font-semibold uppercase tracking-widest text-[#A19B95] hover:text-[#5A5A40]"
-                >
+                <button onClick={fetchNearbyServices} className="text-xs font-semibold uppercase tracking-widest text-[#A19B95] hover:text-[#5A5A40]">
                   Refresh
                 </button>
               </div>
@@ -169,13 +167,8 @@ export default function App() {
                   </div>
                 ) : nearbyServices.length > 0 ? (
                   nearbyServices.map((service, i) => (
-                    <a 
-                      key={i} 
-                      href={service.uri} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex-shrink-0 w-64 p-4 bg-white rounded-3xl border border-[#F0EBE6] hover:border-[#5A5A40] transition-all"
-                    >
+                    <a key={i} href={service.uri} target="_blank" rel="noopener noreferrer"
+                      className="flex-shrink-0 w-64 p-4 bg-white rounded-3xl border border-[#F0EBE6] hover:border-[#5A5A40] transition-all">
                       <div className="flex items-center gap-3 mb-2">
                         <div className="w-8 h-8 bg-[#F5F2ED] rounded-lg flex items-center justify-center text-[#5A5A40]">
                           <MapPin size={16} />
@@ -191,12 +184,8 @@ export default function App() {
               </div>
             </section>
 
-            {/* Recent Activity / Tips */}
             <section className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-serif font-bold text-[#5A5A40]">Daily Pet Tips</h3>
-                <button className="text-xs font-semibold uppercase tracking-widest text-[#A19B95] hover:text-[#5A5A40]">View All</button>
-              </div>
+              <h3 className="text-xl font-serif font-bold text-[#5A5A40]">Daily Pet Tips</h3>
               <div className="grid gap-4">
                 {[
                   { title: "Hydration is Key", desc: "Ensure your pet has fresh water at all times, especially during summer.", tag: "Health" },
@@ -231,6 +220,12 @@ export default function App() {
         return <TrainingModule />;
       case 'profile':
         return <PetProfiles />;
+      case 'feeding':
+        return <FeedingTracker />;
+      case 'sitter':
+        return <SitterHandoffSheet />;
+      case 'senior':
+        return <SeniorJournal />;
       default:
         return (
           <div className="flex items-center justify-center h-[60vh] text-[#A19B95]">
@@ -248,7 +243,3 @@ export default function App() {
     </Layout>
   );
 }
-
-import { Video } from 'lucide-react';
-
-
