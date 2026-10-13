@@ -87,7 +87,10 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
 
   const startSession = useCallback(async () => {
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const tokenRes = await fetch('/api/live-token', { method: 'POST' });
+      if (!tokenRes.ok) throw new Error('Could not start a live session.');
+      const { token } = await tokenRes.json();
+      const ai = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: 'v1alpha' } });
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
       streamRef.current = stream;
