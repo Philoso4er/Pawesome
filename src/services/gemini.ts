@@ -1,6 +1,19 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+// All Gemini calls go through the /api/gemini serverless function so the
+// API key stays on the server (set GEMINI_API_KEY in Vercel env vars).
+async function generateContent(params: { model: string; contents: any; config?: any }) {
+  const res = await fetch("/api/gemini", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Gemini request failed (${res.status})`);
+  return data as { text: string; candidates: any[] };
+}
+
+const ai = { models: { generateContent } };
 
 export const PET_EXPERT_INSTRUCTION = `You are "Pawesome AI", a world-class pet expert and enthusiast. 
 Your personality is warm, professional, and deeply caring about all animals. 
@@ -115,26 +128,10 @@ export async function answerExpertQuestion(question: string, petContext?: string
 
 // ─── Training Video (Veo) ─────────────────────────────────────────────────────
 
-export async function generateTrainingVideo(taskTitle: string, petContext: string) {
-  const aiInstance = new GoogleGenAI({
-    apiKey: process.env.API_KEY || process.env.GEMINI_API_KEY!,
-  });
-  let operation = await aiInstance.models.generateVideos({
-    model: "veo-2.0-generate-001",
-    prompt: `Educational video: training a pet to ${taskTitle}. ${petContext}. Positive reinforcement. Cinematic, professional setting.`,
-    config: { numberOfVideos: 1, resolution: "720p", aspectRatio: "16:9" },
-  });
-  while (!operation.done) {
-    await new Promise((r) => setTimeout(r, 10000));
-    operation = await aiInstance.operations.getVideosOperation({ operation });
-  }
-  const uri = operation.response?.generatedVideos?.[0]?.video?.uri;
-  if (!uri) throw new Error("Video generation failed.");
-  const videoRes = await fetch(uri, {
-    headers: { "x-goog-api-key": process.env.API_KEY || process.env.GEMINI_API_KEY! },
-  });
-  if (!videoRes.ok) throw new Error("Failed to download video.");
-  return URL.createObjectURL(await videoRes.blob());
+export async function generateTrainingVideo(_taskTitle: string, _petContext: string): Promise<string> {
+  // Video generation previously used the API key in the browser; disabled until
+  // a server-side endpoint is added.
+  throw new Error("Training video generation is not available right now.");
 }
 
 // ─── Shopping Deal Finder (FIXED v3) ──────────────────────────────────────────
