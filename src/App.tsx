@@ -16,6 +16,16 @@ import SeniorJournal from './components/SeniorJournal';
 import { PawPrint, Heart, Zap, MapPin, Loader2, LogIn, GraduationCap, Users, Settings, MessageCircle, HelpCircle, ShoppingBag, UtensilsCrossed, ClipboardList, BookHeart } from 'lucide-react';
 import { getPetAdvice } from './services/gemini';
 import { useFirebase } from './FirebaseProvider';
+import ProPaywall, { ProPlans } from './components/ProPaywall';
+import { getMe, openPaywall } from './lib/billing';
+
+const FREE_NEARBY = [
+  { title: 'Vets near me', uri: 'https://www.google.com/maps/search/vets+near+me' },
+  { title: 'Emergency vets near me', uri: 'https://www.google.com/maps/search/emergency+vet+near+me' },
+  { title: 'Pet shops near me', uri: 'https://www.google.com/maps/search/pet+shop+near+me' },
+  { title: 'Dog groomers near me', uri: 'https://www.google.com/maps/search/dog+groomer+near+me' },
+  { title: 'Dog parks near me', uri: 'https://www.google.com/maps/search/dog+park+near+me' },
+];
 
 export default function App() {
   const { user, loading, signIn } = useFirebase();
@@ -23,6 +33,34 @@ export default function App() {
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [nearbyServices, setNearbyServices] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Returning from Stripe Checkout: refresh entitlement (Stripe search can lag ~1 min).
+  useEffect(() => {
+    if (!user) return;
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('checkout');
+    if (!status) return;
+    window.history.replaceState({}, '', window.location.pathname);
+    if (status !== 'success') return;
+    const kind = params.get('kind');
+    setNotice(kind === 'consult' ? 'Payment received! Your consultation credit is being added…' : 'Welcome to Pawesome Pro! Activating…');
+    let tries = 0;
+    const tick = async () => {
+      const me = await getMe(true);
+      if ((kind === 'consult' ? me.credits > 0 : me.pro) || ++tries > 8) {
+        setNotice(kind === 'consult' ? 'Your consultation is ready: open Pro → Start session.' : "You're Pro! All AI features are unlocked.");
+        setTimeout(() => setNotice(null), 6000);
+      } else setTimeout(tick, 8000);
+    };
+    tick();
+  }, [user]);
+
+  const startLive = async () => {
+    const me = await getMe(true);
+    if (me.credits > 0) setIsLiveActive(true);
+    else openPaywall('consult');
+  };
 
   useEffect(() => {
     if (activeTab === 'home' && user) {
@@ -69,6 +107,11 @@ export default function App() {
   }
 
   const fetchNearbyServices = async () => {
+    const me = await getMe();
+    if (!me.pro) {
+      setNearbyServices(FREE_NEARBY); // free tier: no AI cost
+      return;
+    }
     setIsSearching(true);
     try {
       let locationPrompt = "Find pet stores, veterinarians, and dog parks nearby.";
@@ -115,11 +158,12 @@ export default function App() {
                   Get instant expert advice, find local services, and manage your pet's health with Pawesome AI.
                 </p>
                 <button
-                  onClick={() => setIsLiveActive(true)}
+                  onClick={startLive}
                   className="bg-white text-[#5A5A40] px-6 py-3 rounded-full font-semibold text-sm hover:shadow-lg transition-all active:scale-95"
                 >
-                  Start Consultation
+                  Book a Live Consultation
                 </button>
+                <p className="text-[11px] text-white/60 max-w-sm">AI guidance, not a substitute for a vet. In an emergency, call your vet.</p>
               </div>
               <div className="absolute right-[-20px] bottom-[-20px] opacity-20">
                 <PawPrint size={240} strokeWidth={1} />
@@ -226,6 +270,13 @@ export default function App() {
         return <SitterHandoffSheet />;
       case 'senior':
         return <SeniorJournal />;
+      case 'pro':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-3xl font-serif font-bold text-[#5A5A40] text-center">Pawesome Pro & Consultations</h2>
+            <ProPlans onStartLive={() => setIsLiveActive(true)} />
+          </div>
+        );
       default:
         return (
           <div className="flex items-center justify-center h-[60vh] text-[#A19B95]">
@@ -238,7 +289,11 @@ export default function App() {
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
       <ErrorBoundary>
+        {notice && (
+          <div className="mb-6 rounded-2xl bg-[#5A5A40] text-white px-5 py-3 text-sm font-semibold text-center">{notice}</div>
+        )}
         {renderContent()}
+        <ProPaywall onStartLive={() => setIsLiveActive(true)} />
       </ErrorBoundary>
     </Layout>
   );

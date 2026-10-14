@@ -3,6 +3,7 @@ import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2, Sparkles, MessageSquar
 import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
 import { cn } from '../lib/utils';
 import { PET_EXPERT_INSTRUCTION } from '../services/gemini';
+import { authedFetch, openPaywall } from '../lib/billing';
 
 export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
   const [isConnected, setIsConnected] = useState(false);
@@ -87,7 +88,12 @@ export default function LiveConsultation({ onEnd }: { onEnd: () => void }) {
 
   const startSession = useCallback(async () => {
     try {
-      const tokenRes = await fetch('/api/live-token', { method: 'POST' });
+      const tokenRes = await authedFetch('/api/live-token', { method: 'POST' });
+      if (tokenRes.status === 402) {
+        openPaywall('consult');
+        onEnd();
+        return;
+      }
       if (!tokenRes.ok) throw new Error('Could not start a live session.');
       const { token } = await tokenRes.json();
       const ai = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: 'v1alpha' } });
