@@ -1,14 +1,16 @@
 import { Type } from "@google/genai";
+import { authedFetch, openPaywall, ProRequiredError, getMe } from "../lib/billing";
+import { retailerSearchLinks } from "../lib/affiliate";
 
 // All Gemini calls go through the /api/gemini serverless function so the
 // API key stays on the server (set GEMINI_API_KEY in Vercel env vars).
 async function generateContent(params: { model: string; contents: any; config?: any }) {
-  const res = await fetch("/api/gemini", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  });
+  const res = await authedFetch("/api/gemini", { method: "POST", body: JSON.stringify(params) });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 402) {
+    openPaywall("pro");
+    throw new ProRequiredError("pro");
+  }
   if (!res.ok) throw new Error(data.error || `Gemini request failed (${res.status})`);
   return data as { text: string; candidates: any[] };
 }
@@ -95,8 +97,32 @@ export async function recognizePetBreed(imageData: string, mimeType: string) {
 
 // ─── Content Moderation ───────────────────────────────────────────────────────
 
+// Free, non-AI moderation used for free-tier users (and if the AI is unavailable).
+const BLOCKLIST = /\b(kill|poison|abuse|torture|fuck|shit|cunt|nigg|faggot|retard|porn|nude|viagra|casino|crypto ?giveaway|onlyfans)\b/i;
+const HARMFUL_ADVICE = /\b(chocolate|grapes?|raisins?|xylitol|onions?|ibuprofen|paracetamol|acetaminophen)\b.*\b(safe|fine|ok|give|feed)\b/i;
+export function basicModeration(content: string) {
+  if (BLOCKLIST.test(content)) return { isSafe: false, reason: "Contains language that isn't allowed", suggestedAction: "reject" as const };
+  if (HARMFUL_ADVICE.test(content)) return { isSafe: true, reason: "May contain unsafe pet advice; flagged for review", suggestedAction: "flag" as const };
+  if ((content.match(/https?:\/\//g) || []).length > 3) return { isSafe: true, reason: "Many links; flagged as possible spam", suggestedAction: "flag" as const };
+  return { isSafe: true, reason: "", suggestedAction: "approve" as const };
+}
+
 export async function moderateContent(content: string) {
-  const response = await ai.models.generateContent({
+  const local = basicModeration(content);
+  if (local.suggestedAction === "reject") return local;
+  const me = await getMe();
+  if (!me.pro) return local;
+  let response;
+  try {
+    response = await aiModerate(content);
+  } catch {
+    return local;
+  }
+  try { return JSON.parse(response.text || "{}"); } catch { return local; }
+}
+
+async function aiModerate(content: string) {
+  return ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: `Analyze this pet forum post for safety. Check for: hate speech, harmful pet advice, explicit content, spam. Content: "${content}"`,
     config: {
@@ -112,7 +138,6 @@ export async function moderateContent(content: string) {
       },
     },
   });
-  try { return JSON.parse(response.text || "{}"); } catch { return { isSafe: true, suggestedAction: "approve" }; }
 }
 
 // ─── Expert Q&A ───────────────────────────────────────────────────────────────
@@ -147,6 +172,16 @@ export async function generateTrainingVideo(_taskTitle: string, _petContext: str
 // This is more reliable than the two-step approach for varied query types.
 
 export async function findPetDeals(query: string) {
+  const me = await getMe();
+  if (!me.pro) {
+    // Free tier: no AI cost, straight to the main UK pet retailers.
+    return {
+      items: retailerSearchLinks(query),
+      coupons: [],
+      summary: `Top UK pet retailers for “${query}”. Upgrade to Pawesome Pro for AI price comparison and live coupon codes.`,
+      free: true,
+    };
+  }
   try {
     // Step 1: Web search for current deals (plain text response)
     const searchRes = await ai.models.generateContent({
@@ -244,11 +279,7 @@ Include 4-6 items. If no real coupons found, return empty coupons array.`,
 
     // Ensure we always have something useful
     if (!parsed.items || parsed.items.length === 0) {
-      parsed.items = [
-        { title: `${query} — Search on Chewy`, price: "View on site", source: "Chewy", url: `https://www.chewy.com/s?query=${encodeURIComponent(query)}`, imageUrl: "", rating: "", dealInfo: "" },
-        { title: `${query} — Search on PetSmart`, price: "View on site", source: "PetSmart", url: `https://www.petsmart.com/search/?q=${encodeURIComponent(query)}`, imageUrl: "", rating: "", dealInfo: "" },
-        { title: `${query} — Search on Amazon`, price: "View on site", source: "Amazon", url: `https://www.amazon.com/s?k=${encodeURIComponent(query)}+pet`, imageUrl: "", rating: "", dealInfo: "" },
-      ];
+      parsed.items = retailerSearchLinks(query);
       parsed.summary = `Here are some places to find ${query}. Click "View Deal" to search each retailer for current pricing.`;
     }
 
@@ -257,11 +288,7 @@ Include 4-6 items. If no real coupons found, return empty coupons array.`,
     console.error("findPetDeals error:", e);
     // Always return something useful rather than an empty state
     return {
-      items: [
-        { title: `Search "${query}" on Chewy`, price: "View on site", source: "Chewy", url: `https://www.chewy.com/s?query=${encodeURIComponent(query)}`, imageUrl: "", rating: "", dealInfo: "Free shipping over $49" },
-        { title: `Search "${query}" on PetSmart`, price: "View on site", source: "PetSmart", url: `https://www.petsmart.com/search/?q=${encodeURIComponent(query)}`, imageUrl: "", rating: "", dealInfo: "" },
-        { title: `Search "${query}" on Amazon`, price: "View on site", source: "Amazon", url: `https://www.amazon.com/s?k=${encodeURIComponent(query)}+pet`, imageUrl: "", rating: "", dealInfo: "Prime eligible items available" },
-      ],
+      items: retailerSearchLinks(query),
       coupons: [],
       summary: `I couldn't fetch live prices right now, but here are direct search links for "${query}" at the top pet retailers.`,
     };

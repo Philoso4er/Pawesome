@@ -3,11 +3,13 @@ import { Search, ShoppingBag, Tag, ExternalLink, Loader2, Sparkles } from 'lucid
 import { motion, AnimatePresence } from 'framer-motion';
 import { findPetDeals } from '../services/gemini';
 import { ShoppingItem, Coupon } from '../types';
+import { affiliateUrl } from '../lib/affiliate';
+import { openPaywall } from '../lib/billing';
 
 export default function PetShopping() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<{ items: ShoppingItem[], coupons: Coupon[], summary: string } | null>(null);
+  const [results, setResults] = useState<{ items: ShoppingItem[], coupons: Coupon[], summary: string, free?: boolean } | null>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,9 +79,14 @@ export default function PetShopping() {
             <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-2xl">
               <h2 className="text-emerald-900 font-semibold flex items-center gap-2 mb-2">
                 <Sparkles className="w-5 h-5" />
-                AI Deal Analysis
+                {results.free ? 'Where to shop' : 'AI Deal Analysis'}
               </h2>
               <p className="text-emerald-800 leading-relaxed">{results.summary}</p>
+              {results.free && (
+                <button onClick={() => openPaywall('pro')} className="mt-3 text-sm font-semibold text-emerald-700 underline">
+                  Unlock AI price comparison with Pro ✨
+                </button>
+              )}
             </div>
 
             {/* Coupons Section */}
@@ -149,9 +156,9 @@ export default function PetShopping() {
                         </div>
                       )}
                       <a
-                        href={item.url}
+                        href={affiliateUrl(item.url)}
                         target="_blank"
-                        rel="noopener noreferrer"
+                        rel="noopener noreferrer sponsored"
                         className="mt-auto w-full bg-slate-900 text-white py-2 rounded-xl font-medium hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
                       >
                         View Deal
@@ -177,6 +184,9 @@ export default function PetShopping() {
           </div>
         )}
       </AnimatePresence>
+      <p className="text-center text-xs text-slate-400">
+        Affiliate disclosure: some links are affiliate links (e.g. Amazon Associates, Awin). As an Amazon Associate we earn from qualifying purchases, at no extra cost to you.
+      </p>
     </div>
   );
 }

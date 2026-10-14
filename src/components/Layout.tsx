@@ -1,5 +1,5 @@
 import React from 'react';
-import { PawPrint, MessageSquare, Users, Heart, GraduationCap, Settings, Home, PlusCircle, MessageCircle, HelpCircle, ShoppingBag, UtensilsCrossed, ClipboardList, BookHeart } from 'lucide-react';
+import { PawPrint, MessageSquare, Users, Heart, GraduationCap, Settings, Home, PlusCircle, MessageCircle, HelpCircle, ShoppingBag, UtensilsCrossed, ClipboardList, BookHeart, Crown } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface LayoutProps {
@@ -22,6 +22,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     { id: 'feeding', icon: UtensilsCrossed, label: 'Feeding' },
     { id: 'sitter', icon: ClipboardList, label: 'Sitter' },
     { id: 'senior', icon: BookHeart, label: 'Journal' },
+    { id: 'pro', icon: Crown, label: 'Pro' },
   ];
 
   return (
@@ -34,8 +35,8 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
             </div>
             <h1 className="text-2xl font-serif font-bold tracking-tight text-[#5A5A40]">Pawesome</h1>
           </div>
-          <button className="p-2 hover:bg-[#F5F2ED] rounded-full transition-colors">
-            <PlusCircle className="text-[#5A5A40]" />
+          <button onClick={() => setActiveTab('pro')} className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#5A5A40] text-white text-sm font-semibold hover:shadow-lg transition-all">
+            <Crown size={16} className="text-yellow-300" /> Pro
           </button>
         </div>
       </header>
